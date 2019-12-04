@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bitfield/script"
 	"github.com/urfave/cli/v2"
@@ -96,42 +97,48 @@ func main() {
 				Aliases: []string{"f"},
 				Usage:   "find|f 端口号",
 				Action: func(context *cli.Context) error {
-					if context.Args().Len() > 0 {
-						portStr := context.Args().First()
-						var port uint
-						if err := StrToUint(portStr, &port); err != nil {
+					if context.Args().Len() == 0 {
+						return errors.New("error：未定义参数")
+					}
+					portStr := context.Args().First()
+					var port uint
+					if err := StrToUint(portStr, &port); err != nil {
+						return err
+					}
+					if port < 0 || 65535 < port {
+						return errors.New("error：端口号不符合规则")
+					}
+					findByPort := exec.Command("/bin/sh", "-c", fmt.Sprintf("netstat -nlp | grep :%d", port))
+					findByPortOut, _ := findByPort.Output()
+					results := HandleData(strings.Trim(string(findByPortOut), "\n"))
+					if len(results) == 0 {
+						// 没有查找到对应端口号的内容
+						return nil
+					}
+					// 格式化命令执行结果
+					pid := ""
+					fmt.Println("连接协议：", results[0])
+					fmt.Println("接收队列：", results[1])
+					fmt.Println("接收队列：", results[2])
+					fmt.Println("本地地址：", results[3])
+					fmt.Println("外部地址：", results[4])
+					if len(results) == 6 {
+						fmt.Println("进程信息：", results[5])
+						pid = strings.Split(results[5], "/")[0]
+					}
+					if len(results) == 7 {
+						fmt.Println("连接状态：", results[5])
+						fmt.Println("进程信息：", results[6])
+						pid = strings.Split(results[6], "/")[0]
+					}
+					// 获取PID，查找文件位置
+					if len(pid) > 0 {
+						findByPid := exec.Command("ls", "-l", fmt.Sprintf("/proc/%s/cwd", pid))
+						findByPidOut, err := findByPid.Output()
+						if err != nil {
 							return err
 						}
-						if 0 < port && port <= 65535 {
-							findByPort := exec.Command("/bin/sh", "-context", fmt.Sprintf("netstat -nlp | grep :%d", port))
-							findByPortOut, _ := findByPort.Output()
-							results := HandleData(strings.Trim(string(findByPortOut), "\n"))
-							// 格式化命令执行结果
-							pid := ""
-							fmt.Println("连接协议：", results[0])
-							fmt.Println("接收队列：", results[1])
-							fmt.Println("接收队列：", results[2])
-							fmt.Println("本地地址：", results[3])
-							fmt.Println("外部地址：", results[4])
-							if len(results) == 6 {
-								fmt.Println("进程信息：", results[5])
-								pid = strings.Split(results[5], "/")[0]
-							}
-							if len(results) == 7 {
-								fmt.Println("连接状态：", results[5])
-								fmt.Println("进程信息：", results[6])
-								pid = strings.Split(results[6], "/")[0]
-							}
-							// 获取PID，查找文件位置
-							if len(pid) > 0 {
-								findByPid := exec.Command("ls", "-l", fmt.Sprintf("/proc/%s/cwd", pid))
-								findByPidOut, err := findByPid.Output()
-								if err != nil {
-									return err
-								}
-								fmt.Println("文件位置：", strings.Trim(string(findByPidOut), "\n"))
-							}
-						}
+						fmt.Println("文件位置：", strings.Trim(string(findByPidOut), "\n"))
 					}
 					return nil
 				},
