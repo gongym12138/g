@@ -1,4 +1,4 @@
-module o
+module g
 
 go 1.13
 
