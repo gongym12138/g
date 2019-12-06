@@ -57,6 +57,14 @@ func HandleData(str string) []string {
 	return results
 }
 
+func CheckAndRemoveJava() {
+	checkJava := "rpm -qa | grep java"
+	findByPort := exec.Command("/bin/sh", "-c", checkJava)
+	findByPortOut, _ := findByPort.Output()
+	results := HandleData(strings.Trim(string(findByPortOut), "\n"))
+	fmt.Println(results)
+}
+
 var SearchMap = map[string]string{
 	"新建": "新建",
 	"查询": "查询",
@@ -64,7 +72,7 @@ var SearchMap = map[string]string{
 
 func main() {
 	app := &cli.App{
-		Name:     "o",
+		Name:     "g",
 		Version:  "v1.0.0",
 		Compiled: time.Now(),
 		Authors: []*cli.Author{
@@ -73,7 +81,7 @@ func main() {
 			},
 		},
 		Usage:     "轻松学习使用Linux命令",
-		UsageText: "o/o.exe [global options] command [command options] [arguments...]",
+		UsageText: "g/g.exe [global options] command [command options] [arguments...]",
 		Commands: []*cli.Command{
 			{
 				Name: "ls",
@@ -98,7 +106,7 @@ func main() {
 				Usage:   "find|f 端口号",
 				Action: func(context *cli.Context) error {
 					if context.Args().Len() == 0 {
-						return errors.New("error：未定义参数")
+						return errors.New("error: 未定义参数")
 					}
 					portStr := context.Args().First()
 					var port uint
@@ -106,7 +114,7 @@ func main() {
 						return err
 					}
 					if port < 0 || 65535 < port {
-						return errors.New("error：端口号不符合规则")
+						return errors.New("error: 端口号不符合规则")
 					}
 					findByPort := exec.Command("/bin/sh", "-c", fmt.Sprintf("netstat -nlp | grep :%d", port))
 					findByPortOut, _ := findByPort.Output()
@@ -156,9 +164,23 @@ func main() {
 				Name:    "install",
 				Aliases: []string{"i"},
 				Usage:   "install|i 要安装的软件",
-				Action: func(c *cli.Context) error {
-					fmt.Println(SearchMap[c.Args().First()])
-					return nil
+				Subcommands: []*cli.Command{
+					{
+						Name:  "jdk8",
+						Usage: "安装JDK.V8",
+						Action: func(c *cli.Context) error {
+							CheckAndRemoveJava()
+							return nil
+						},
+					},
+					{
+						Name:  "jdk11",
+						Usage: "安装JDK.V11",
+						Action: func(c *cli.Context) error {
+							fmt.Println("delete subcommand")
+							return nil
+						},
+					},
 				},
 			},
 		},
