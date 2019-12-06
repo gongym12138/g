@@ -17,5 +17,6 @@
 .idea/
 vendor/
 g
+go_build_main_go
 *.sum
 
