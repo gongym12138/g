@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bitfield/script"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/urfave/cli/v2"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -103,19 +105,35 @@ func CheckAndRemoveJava() {
 }
 
 func InstallJava(version int) error {
-	downloadUrl := ""
+	var (
+		downloadUrl string
+		fileName    string
+	)
+	// 下载JDK
 	if version == 8 {
-		downloadUrl = "https://github.com/gongym12138/oracle-java/releases/download/8u231/jdk-8u231-linux-x64.tar.gz"
-		fileName := "java8.tar.gz"
+		downloadUrl = "http://192.168.2.145:8000/oss/api/v1/download/sdk/20191210/18/jdk-8u231-linux-x64.tar.gz"
+		fileName = "java8.tar.gz"
 		response, err := http.Get(downloadUrl)
 		if err != nil {
 			return err
 		}
 		if response.StatusCode == http.StatusOK {
-			fmt.Println("正在下载JDK")
+			fmt.Println("正在下载JDK:" + downloadUrl)
+			sourceSize, _ := strconv.Atoi(response.Header.Get("Content-Length"))
+			sourceSize64 := int64(sourceSize)
+			jdkFile, err := os.Create(fileName)
+			if err != nil {
+				return err
+			}
+			defer jdkFile.Close()
+			progressBar := pb.Full.Start64(sourceSize64)
+			buffer := make([]byte, 1024)
+			_, _ = io.CopyBuffer(jdkFile, progressBar.NewProxyReader(io.LimitReader(response.Body, sourceSize64)), buffer)
+			progressBar.Finish()
 		}
-
 	}
+	// 解压安装
+	// 配置环境变量
 	return nil
 }
 
@@ -223,8 +241,10 @@ func main() {
 						Name:  "jdk8",
 						Usage: "安装JDK.V8",
 						Action: func(context *cli.Context) error {
-							CheckAndRemoveJava()
-							_ = InstallJava(8)
+							// CheckAndRemoveJava()
+							if err := InstallJava(8); err != nil {
+								return err
+							}
 							installPath := "/usr/local/java/"
 							if context.Args().Len() > 0 {
 								installPath = context.Args().First()
