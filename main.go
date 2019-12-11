@@ -6,13 +6,24 @@ import (
 	"github.com/bitfield/script"
 	"github.com/urfave/cli/v2"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+)
+
+type LinuxType int
+
+const (
+	_ LinuxType = iota
+	Centos
+	Ubuntu
+	Unknown
 )
 
 func StrToUint(strNumber string, value interface{}) (err error) {
@@ -57,12 +68,55 @@ func HandleData(str string) []string {
 	return results
 }
 
+func CheckLinuxType() LinuxType {
+	checkType := exec.Command("/bin/sh", "-c", "cat /etc/issue")
+	checkTypeOut, _ := checkType.Output()
+	checkTypeOutFmt := strings.ToLower(strings.Trim(string(checkTypeOut), "\n"))
+	if strings.Contains(checkTypeOutFmt, "kernel") {
+		return Centos
+	} else if strings.Contains(checkTypeOutFmt, "ubuntu") {
+		return Ubuntu
+	} else {
+		return Unknown
+	}
+}
+
 func CheckAndRemoveJava() {
-	checkJava := "rpm -qa | grep java"
-	findByPort := exec.Command("/bin/sh", "-c", checkJava)
-	findByPortOut, _ := findByPort.Output()
-	results := HandleData(strings.Trim(string(findByPortOut), "\n"))
-	fmt.Println(results)
+	linuxType := CheckLinuxType()
+	fmt.Println("检查是否需要移除OpenJDK")
+	if linuxType == Centos {
+		checkJava := exec.Command("/bin/sh", "-c", "rpm -qa | grep java")
+		checkJavaOut, _ := checkJava.Output()
+		pkgs := strings.Split(strings.Trim(string(checkJavaOut), "\n"), "\n")
+		if len(pkgs) == 0 {
+			return
+		}
+		for _, pkg := range pkgs {
+			if strings.Contains(pkg, "openjdk") {
+				fmt.Println("正在移除：" + pkg)
+				checkJava := exec.Command("/bin/sh", "-c", "rpm -e --nodeps "+pkg)
+				_, _ = checkJava.Output()
+			}
+		}
+	}
+	fmt.Println("检查完成")
+}
+
+func InstallJava(version int) error {
+	downloadUrl := ""
+	if version == 8 {
+		downloadUrl = "https://github.com/gongym12138/oracle-java/releases/download/8u231/jdk-8u231-linux-x64.tar.gz"
+		fileName := "java8.tar.gz"
+		response, err := http.Get(downloadUrl)
+		if err != nil {
+			return err
+		}
+		if response.StatusCode == http.StatusOK {
+			fmt.Println("正在下载JDK")
+		}
+
+	}
+	return nil
 }
 
 var SearchMap = map[string]string{
@@ -168,8 +222,19 @@ func main() {
 					{
 						Name:  "jdk8",
 						Usage: "安装JDK.V8",
-						Action: func(c *cli.Context) error {
+						Action: func(context *cli.Context) error {
 							CheckAndRemoveJava()
+							_ = InstallJava(8)
+							installPath := "/usr/local/java/"
+							if context.Args().Len() > 0 {
+								installPath = context.Args().First()
+							}
+							cmdPath, err := filepath.Abs(filepath.Dir(os.Args[0]))
+							if err != nil {
+								return err
+							}
+							fmt.Println(installPath)
+							fmt.Println(cmdPath)
 							return nil
 						},
 					},
@@ -177,10 +242,25 @@ func main() {
 						Name:  "jdk11",
 						Usage: "安装JDK.V11",
 						Action: func(c *cli.Context) error {
-							fmt.Println("delete subcommand")
+							_ = InstallJava(11)
 							return nil
 						},
 					},
+					{
+						Name:  "mysql",
+						Usage: "安装MySQL",
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+				},
+			},
+			{
+				Name:  "show",
+				Usage: "show 需要查看的信息",
+				Action: func(c *cli.Context) error {
+
+					return nil
 				},
 			},
 		},
