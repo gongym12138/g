@@ -111,7 +111,7 @@ func InstallJava(version int) error {
 	)
 	// 下载JDK
 	if version == 8 {
-		downloadUrl = "http://192.168.2.145:8000/oss/api/v1/download/sdk/20191210/18/jdk-8u231-linux-x64.tar.gz"
+		downloadUrl = "http://192.168.2.182:8000/oss/api/v1/download/795mT7"
 		fileName = "java8.tar.gz"
 		response, err := http.Get(downloadUrl)
 		if err != nil {
@@ -242,9 +242,9 @@ func main() {
 						Usage: "安装JDK.V8",
 						Action: func(context *cli.Context) error {
 							// CheckAndRemoveJava()
-							if err := InstallJava(8); err != nil {
-								return err
-							}
+							//if err := InstallJava(8); err != nil {
+							//	return err
+							//}
 							installPath := "/usr/local/java/"
 							if context.Args().Len() > 0 {
 								installPath = context.Args().First()
